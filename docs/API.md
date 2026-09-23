@@ -40,6 +40,8 @@ curl http://127.0.0.1:8080/v1/systemone \
 
 トップレベルの応答は`model`, `answers`, `usage`だけです。追加のローカル診断情報で公式SDKの応答形を変更しません。`state`や質問文は応答には加えず、整形クライアントが元リクエストから表示します。
 
+例外として、[DiffusionGemmaブリッジ構成](DIFFUSIONGEMMA.md)は、ブリッジが返す`diagnostics`をトップレベルに含めます。ブラウザデモはこの情報からread時間などを表示します。
+
 - `score = Σ(段階番号 × その確率)`。段階番号は0始まりです。
 - Scoreの`legend`と`probabilities`のキーはHTTP上では文字列。Python SDKは整数キーへ変換します。
 - Noulの`noul`はP(true)。boolや最大候補の確率ではありません。独立したconfidenceは付けません。

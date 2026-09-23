@@ -1,6 +1,6 @@
 # Jev Local
 
-文章・JSON・画像に対する質問を、**Choice（選択肢）・Score（段階評価）・Noul（真偽）の確率**として返すローカルAPIです。同じ`/v1/systemone`を、LLMの先頭トークン判定とModernBERTの候補ペア採点で提供します。
+文章・JSON・画像に対する質問を、**Choice（選択肢）・Score（段階評価）・Noul（真偽）の確率**として返すローカルAPIです。同じ`/v1/systemone`を、LLMの先頭トークン判定、ModernBERTの候補ペア採点、DiffusionGemmaの構造化readで提供します。
 
 | | LFM（既定） | Sarashina（追加） | ModernBERT |
 |---|---|---|---|
@@ -11,6 +11,8 @@
 | 追加依存 | なし（バイナリを自動取得） | 文章はなし。画像は[配布済みmmproj（HF）](https://huggingface.co/argos1111/sarashina2.2-vision-3b-mmproj-jev-f16)と[対応ランタイム（Releases）](https://github.com/Argos1111/jev_local/releases/tag/sarashina-llama-b11042-pre1)を手動配置 | torch＋transformers（別venv） |
 | JGLUE test | JNLI 17% / JComQA 69% | Q4: JNLI 34% / JComQA 86% | JNLI 93% / JComQA 92%（trainで学習） |
 
+[DiffusionGemmaバックエンド](docs/DIFFUSIONGEMMA.md)は、上表の小型ローカルモデルとは別に、vLLMの構造化ブリッジへ接続する構成です。計測値はまだありません。
+
 クライアント・評価ツール・API仕様は共通です。まずLFMで動かしてから、[Sarashinaバックエンド](docs/SARASHINA.md)や[ModernBERTバックエンド](docs/MODERNBERT.md)を追加できます。学習条件と量子化が異なるため、上表は同一APIでの実用比較であり、モデル能力の公平な順位付けではありません。
 
 **Jev本体のモデル・学習・精度を再現するものではありません。** TypeSafeの`/v1/systemone`形式に合わせた非公式アダプターです。画像入力はローカル拡張で、公式SDKの画像互換を意味しません。[APIの互換範囲](docs/API.md)を参照してください。
@@ -20,7 +22,7 @@
 Python **3.12以上**とBashが必要です。自動セットアップはLinux x86_64・arm64、macOS（Apple Silicon・Intel）に対応し、WindowsではWSL2を使用します。通常実行に追加Pythonパッケージやコンパイルは不要です。
 
 ```bash
-git clone https://github.com/Argos1111/jev_local.git
+git clone https://github.com/mmizutani/jev_local.git
 cd jev_local
 ./setup.sh --model text
 ./run.sh --model text
@@ -92,6 +94,17 @@ python3 systemone_client.py \
 このサーバーに送るクライアントでは`--url http://127.0.0.1:18080`を追加します。画像＋stateを読み込むdecoderの処理と各質問の判定は、引き続き質問ごとに実行します。
 
 同じ画像を再送した場合で約3.7倍、初回でも約1.9倍応答が速くなります（512×286 px・4問）。選択結果は変わりません。[効果の目安と制約](docs/IMAGE_CACHE.md)を参照してください。
+
+## DiffusionGemmaバックエンドとブラウザデモ
+
+[vLLMの構造化DiffusionGemmaブリッジ](docs/DIFFUSIONGEMMA.md)（`127.0.0.1:8011`）に接続し、同じ`/v1/systemone` APIを提供します。vLLM本体は`127.0.0.1:8000`、Jev LocalのAPIとデモは`127.0.0.1:8080`です。モデルとブリッジを起動した後、次を実行します。
+
+```bash
+./setup_diffusiongemma.sh
+./run_diffusiongemma.sh
+```
+
+ブラウザで`http://127.0.0.1:8080/`を開くと、StateとNoul・Choice・Scoreの質問を編集し、実際の判定確率、レイテンシ、エラーを確認できます。初期入力は編集可能な例で、結果は実行時に取得します。モデルの起動コマンド、設定と制約は[専用ガイド](docs/DIFFUSIONGEMMA.md)を参照してください。
 
 ## ModernBERTバックエンド（文章のみ）
 
@@ -166,6 +179,7 @@ jev_local.py / state_cache.py      候補確率の計算・テキストStateの�
 image_input.py                    画像の検証・data URLへの変換
 systemone_client.py / display.py   クライアント・結果表示
 modernbert/                       ModernBERT cross-encoderの学習・推論・API
+diffusiongemma/                    DiffusionGemmaブリッジのローカルAPI・デモ
 scripts/                          セットアップ・起動・実験ビルド
 native/                           画像エンコードキャッシュとC++単体テスト
 examples/                         リクエストJSON
@@ -197,6 +211,7 @@ CIではPythonテスト・シェル構文と、モデル不要のC++キャッシ
 - [共通Stateの再利用](docs/STATE_CACHE.md)
 - [JGLUE評価](docs/JGLUE.md)
 - [ModernBERTバックエンド](docs/MODERNBERT.md)
+- [DiffusionGemmaバックエンドとデモ](docs/DIFFUSIONGEMMA.md)
 - [Sarashinaバックエンド](docs/SARASHINA.md) / [画像を使う](docs/SARASHINA_RELEASE.md) / [ソースからビルド](docs/SARASHINA_BUILD.md)
 
 依存する[llama.cpp](https://github.com/ggml-org/llama.cpp)と[LFM2.5モデル](https://huggingface.co/LiquidAI/LFM2.5-VL-1.6B-GGUF)、[Sarashina2.2 Vision](https://huggingface.co/sbintuitions/sarashina2.2-vision-3b)・[ModernBERT-Ja](https://huggingface.co/sbintuitions/modernbert-ja-310m)（MIT）は、それぞれの配布元の利用条件に従います。ModernBERTの学習に使う公開データセット（JGLUE・JCoLA・JMMLU: CC BY-SA 4.0、JCommonsenseMorality: MIT、MASSIVE: CC BY 4.0、livedoor: CC BY-ND 2.1 JP）は実行時に取得し、リポジトリには含めません。学習済みモデルを再配布する場合はCC BY-SAの継承条件に留意してください。Gitのソースツリーにバイナリ・モデル重みは同梱しません。
